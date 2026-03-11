@@ -1,90 +1,120 @@
 import streamlit as st
-import joblib
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+import joblib
+import plotly.express as px
 
-# Page settings
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
 st.set_page_config(
-    page_title="AQI ML Dashboard",
-    page_icon="🌫",
+    page_title="Air Quality Index Predictor",
+    page_icon="🌫️",
     layout="wide"
 )
 
-# Load model
+# -----------------------------
+# LOAD DATA
+# -----------------------------
 model = joblib.load("model/model.pkl")
-
-# Load dataset
 df = pd.read_csv("data/clean_aqi.csv")
 
-st.title("🌫 Air Quality Index Prediction Dashboard")
-st.write("Machine Learning model to predict AQI using pollution parameters.")
+# -----------------------------
+# SIDEBAR
+# -----------------------------
+st.sidebar.title("AQI Dashboard")
+st.sidebar.markdown("Machine Learning Air Quality Monitoring System")
 
-# -----------------------
-# PREDICTION SECTION
-# -----------------------
+st.sidebar.header("Input Pollution Levels")
 
-st.header("AQI Prediction")
+pm25 = st.sidebar.slider("PM2.5", 0.0, 500.0, 50.0)
+pm10 = st.sidebar.slider("PM10", 0.0, 500.0, 80.0)
+no2 = st.sidebar.slider("NO2", 0.0, 200.0, 40.0)
+so2 = st.sidebar.slider("SO2", 0.0, 200.0, 10.0)
+co = st.sidebar.slider("CO", 0.0, 20.0, 1.0)
+o3 = st.sidebar.slider("O3", 0.0, 300.0, 25.0)
 
-col1, col2 = st.columns(2)
+month = st.sidebar.slider("Month", 1, 12, 6)
+day = st.sidebar.slider("Day", 1, 31, 15)
 
-with col1:
+# -----------------------------
+# TITLE
+# -----------------------------
+st.title("🌫 Air Quality Index Prediction System")
+st.markdown("Predict AQI using a Machine Learning Model trained on pollution data.")
 
-    pm25 = st.number_input("PM2.5", 0.0, 500.0)
-    pm10 = st.number_input("PM10", 0.0, 500.0)
-    no2 = st.number_input("NO2", 0.0, 200.0)
-    so2 = st.number_input("SO2", 0.0, 200.0)
-    co = st.number_input("CO", 0.0, 20.0)
-    o3 = st.number_input("O3", 0.0, 300.0)
+# -----------------------------
+# TABS
+# -----------------------------
+tab1, tab2, tab3 = st.tabs(["🔮 Prediction", "📊 Analytics", "📁 Dataset"])
 
-with col2:
+# -----------------------------
+# PREDICTION TAB
+# -----------------------------
+with tab1:
 
-    month = st.slider("Month", 1, 12)
-    day = st.slider("Day", 1, 31)
+    col1, col2, col3 = st.columns(3)
 
-if st.button("Predict AQI"):
+    if st.button("Predict AQI"):
 
-    features = np.array([[pm25, pm10, no2, so2, co, o3, month, day]])
+        features = np.array([[pm25, pm10, no2, so2, co, o3, month, day]])
+        prediction = model.predict(features)[0]
 
-    prediction = model.predict(features)[0]
+        col1.metric("Predicted AQI", round(prediction,2))
 
-    st.subheader(f"Predicted AQI: {prediction:.2f}")
+        if prediction <= 50:
+            col2.success("Air Quality: Good")
+        elif prediction <= 100:
+            col2.info("Air Quality: Moderate")
+        elif prediction <= 150:
+            col2.warning("Sensitive Groups")
+        elif prediction <= 200:
+            col2.error("Unhealthy")
+        elif prediction <= 300:
+            col2.error("Very Unhealthy")
+        else:
+            col2.error("Hazardous")
 
-# -----------------------
-# VISUALIZATION SECTION
-# -----------------------
+        col3.metric("PM2.5 Level", pm25)
 
-st.header("Dataset Visualizations")
+    st.markdown("---")
 
-col3, col4 = st.columns(2)
+    st.subheader("Input Pollution Parameters")
 
-# AQI Distribution
-with col3:
+    data = {
+        "Parameter": ["PM2.5","PM10","NO2","SO2","CO","O3"],
+        "Value": [pm25,pm10,no2,so2,co,o3]
+    }
+
+    chart_df = pd.DataFrame(data)
+
+    fig = px.bar(chart_df,x="Parameter",y="Value",color="Parameter")
+    st.plotly_chart(fig,use_container_width=True)
+
+# -----------------------------
+# ANALYTICS TAB
+# -----------------------------
+with tab2:
 
     st.subheader("AQI Distribution")
 
-    fig, ax = plt.subplots()
-
-    sns.histplot(df["AQI"], bins=30, kde=True, ax=ax)
-
-    st.pyplot(fig)
-
-# Correlation Heatmap
-with col4:
+    fig1 = px.histogram(df,x="AQI",nbins=40,color_discrete_sequence=["orange"])
+    st.plotly_chart(fig1,use_container_width=True)
 
     st.subheader("Pollution Correlation Heatmap")
 
-    fig2, ax2 = plt.subplots()
+    corr = df.corr()
 
-    sns.heatmap(df.corr(), annot=True, cmap="coolwarm", ax=ax2)
+    fig2 = px.imshow(corr,text_auto=True,color_continuous_scale="RdBu_r")
+    st.plotly_chart(fig2,use_container_width=True)
 
-    st.pyplot(fig2)
+# -----------------------------
+# DATA TAB
+# -----------------------------
+with tab3:
 
-# -----------------------
-# DATA PREVIEW
-# -----------------------
+    st.subheader("Dataset Preview")
+    st.dataframe(df.head(50))
 
-st.header("Dataset Preview")
-
-st.dataframe(df.head(20))
+    st.subheader("Dataset Statistics")
+    st.write(df.describe())
