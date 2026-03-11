@@ -16,7 +16,7 @@ st.set_page_config(
 # -----------------------------
 # LOAD DATA
 # -----------------------------
-model = joblib.load("model/model.pkl")
+model = joblib.load("model.pkl")
 df = pd.read_csv("data/clean_aqi.csv")
 
 # -----------------------------
